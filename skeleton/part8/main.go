@@ -18,6 +18,7 @@ import (
 	"net"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/campoy/whispering-gophers/util"
 )
@@ -54,7 +55,7 @@ func main() {
 	}
 }
 
-// TODO: create a global shared Peers instance
+var peers = &Peers{m: make(map[string]chan<- Message)}
 
 type Peers struct {
 	m  map[string]chan<- Message
@@ -93,9 +94,13 @@ func (p *Peers) List() []chan<- Message {
 }
 
 func broadcast(m Message) {
-	for /* TODO: Range over the list of peers */ {
-		// TODO: Send a message to the channel, but don't block.
+	for _, ch := range peers.List() {
 		// Hint: Select is your friend.
+		select {
+		case <-time.After(20 * time.Millisecond):
+			log.Fatal("timed out")
+		case ch <- m:
+		}
 	}
 }
 
@@ -110,9 +115,9 @@ func serve(c net.Conn) {
 			return
 		}
 
-		// TODO: Launch dial in a new goroutine, to connect to the address in the message's Addr field.
-
 		fmt.Printf("%#v\n", m)
+		broadcast(m)
+		go dial(m.Addr)
 	}
 }
 
@@ -131,12 +136,15 @@ func readInput() {
 }
 
 func dial(addr string) {
-	// TODO: If dialing self, return.
+	if addr == self {
+		return
+	}
 
-	// TODO: Add the address to the peers map.
-	// TODO: If you get a nil channel the peer is already connected, return.
-	// TODO: Remove the address from peers map when this function returns
-	//       (use defer).
+	ch := peers.Add(addr)
+	if ch == nil {
+		return
+	}
+	defer peers.Remove(addr)
 
 	c, err := net.Dial("tcp", addr)
 	if err != nil {
