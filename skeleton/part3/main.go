@@ -20,7 +20,10 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 )
+
+const TCPNetwork = "tcp"
 
 var listenAddr = flag.String("listen", "localhost:8000", "host:port to listen on")
 
@@ -30,22 +33,30 @@ type Message struct {
 
 func main() {
 	flag.Parse()
-
-	// TODO: Create a net.Listener listening from the address in the "listen" flag.
+	listen, err := net.Listen(TCPNetwork, *listenAddr)
+	if err != nil {
+		log.Fatalf("problem listening from the address %v", err)
+	}
 
 	for {
-		// TODO: Accept a new connection from the listener.
+		c, err := listen.Accept()
+		if err != nil {
+			log.Fatalf("problem accept a new connection from the listener %v", err)
+		}
+
 		go serve(c)
 	}
 }
 
 func serve(c net.Conn) {
-	// TODO: Use defer to Close the connection when this function returns.
+	defer c.Close()
 
-	// TODO: Create a new json.Decoder reading from the connection.
+	decoder := json.NewDecoder(c)
 	for {
-		// TODO: Create an empty message.
-		// TODO: Decode a new message into the variable you just created.
-		// TODO: Print the message to the standard output.
+		var m Message
+		if err := decoder.Decode(&m); err != nil {
+			log.Fatalf("problem decode information %v", err)
+		}
+		fmt.Fprintf(os.Stdout, "%#v", m)
 	}
 }
