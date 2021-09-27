@@ -30,7 +30,10 @@ import (
 	"log"
 	"net"
 	"os"
+	"time"
 )
+
+const TCPNetwork = "tcp"
 
 var (
 	listenAddr = flag.String("listen", "", "host:port to listen on")
@@ -44,9 +47,9 @@ type Message struct {
 func main() {
 	flag.Parse()
 
-	// TODO: Launch dial in a new goroutine, passing in *dialAddr.
+	go dial(*dialAddr)
 
-	l, err := net.Listen("tcp", *listenAddr)
+	l, err := net.Listen(TCPNetwork, *listenAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -74,5 +77,26 @@ func serve(c net.Conn) {
 }
 
 func dial(addr string) {
-	// TODO: put the contents of the main function from part 2 here.
+	dialer := net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+	connect, err := dialer.Dial(TCPNetwork, addr)
+	if err != nil {
+		log.Fatalf("problem open new connection %v", err)
+	}
+	defer connect.Close()
+
+	s := bufio.NewScanner(os.Stdin)
+	e := json.NewEncoder(connect)
+	for s.Scan() {
+		m := Message{Body: s.Text()}
+		err := e.Encode(m)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	if err := s.Err(); err != nil {
+		log.Fatal(err)
+	}
 }
