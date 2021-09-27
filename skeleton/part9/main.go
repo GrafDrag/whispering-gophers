@@ -31,7 +31,7 @@ var (
 )
 
 type Message struct {
-	// TODO: add ID field
+	ID   string
 	Addr string
 	Body string
 }
@@ -116,10 +116,10 @@ func serve(c net.Conn) {
 			log.Println(err)
 			return
 		}
+		if Seen(m.ID) {
+			continue
+		}
 
-		// TODO: If this message has seen before, ignore it.
-
-		fmt.Printf("%#v\n", m)
 		broadcast(m)
 		go dial(m.Addr)
 	}
@@ -129,11 +129,13 @@ func readInput() {
 	s := bufio.NewScanner(os.Stdin)
 	for s.Scan() {
 		m := Message{
-			// TODO: use util.RandomID to populate the ID field.
+			ID:   util.RandomID(),
 			Addr: self,
 			Body: s.Text(),
 		}
-		// TODO: Mark the message ID as seen.
+		fmt.Printf("%#v\n", m)
+
+		Seen(m.ID)
 		broadcast(m)
 	}
 	if err := s.Err(); err != nil {
@@ -169,12 +171,23 @@ func dial(addr string) {
 	}
 }
 
-// TODO: Create a new map of seen message IDs and a mutex to protect it.
+type SeenIDs struct {
+	m  map[string]bool
+	mu sync.Mutex
+}
+
+var seenIDs = &SeenIDs{
+	m: make(map[string]bool),
+}
 
 // Seen returns true if the specified id has been seen before.
 // If not, it returns false and marks the given id as "seen".
 func Seen(id string) bool {
-	// TODO: Get a write lock on the seen message IDs map and unlock it at before returning.
-	// TODO: Check if the id has been seen before and return that later.
-	// TODO: Mark the ID as seen in the map.
+	seenIDs.mu.Lock()
+	defer seenIDs.mu.Unlock()
+
+	result := seenIDs.m[id]
+	seenIDs.m[id] = true
+
+	return result
 }
