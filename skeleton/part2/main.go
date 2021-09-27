@@ -3,7 +3,7 @@
 // This program extends part 1.
 //
 // It makes a connection the host and port specified by the -dial flag, reads
-// lines from standard input and writes JSON-encoded messages to the network
+// lines from standard input and writes JSON-encoded messages to the TCPNetwork
 // connection.
 //
 // You can test this program by installing and running the dump program:
@@ -23,22 +23,32 @@ import (
 	"log"
 	"net"
 	"os"
+	"time"
 )
 
-var dialAddr = flag.String("dial", "localhost:8000", "host:port to dial")
+const TCPNetwork = "tcp"
+
+var dialAddr = flag.String("dial", "localhost:8080", "host:port to dial")
 
 type Message struct {
 	Body string
 }
 
 func main() {
-	// TODO: Parse the flags.
+	flag.Parse()
 
-	// TODO: Open a new connection using the value of the "dial" flag.
-	// TODO: Don't forget to check the error.
+	dialer := net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+	connect, err := dialer.Dial(TCPNetwork, *dialAddr)
+	if err != nil {
+		log.Fatalf("problem open new connection %v", err)
+	}
+	defer connect.Close()
 
 	s := bufio.NewScanner(os.Stdin)
-	// TODO: Create a json.Encoder writing into the connection you created before.
+	e := json.NewEncoder(connect)
 	for s.Scan() {
 		m := Message{Body: s.Text()}
 		err := e.Encode(m)
